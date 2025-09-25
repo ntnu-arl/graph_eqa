@@ -1,5 +1,6 @@
 import csv, os, ast
 import numpy as np
+import json
 
 def load_eqa_data(cfg):
     # Load dataset
