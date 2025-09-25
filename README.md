@@ -50,13 +50,13 @@ Run the following script to build the docker image locally.
 ./docker/docker_build_with_habitat.sh
 ```
 
-If you have a reasonably fast internet connection, it may be faster for you to just pull the image directly from Docker hub.
+If you have a reasonably fast internet connection, it may be faster for you to just pull the image directly from Docker hub. It is around 30 GB.
 
 ```bash
 docker pull blakerbuchanan/grapheqa_for_habitat:0.0.1
 ```
 
-The following script will run a container:
+The following script will instantiate a container based on that image:
 
 ```bash
 ./docker/docker_run_habitat.sh
@@ -68,7 +68,7 @@ If the docker container is already running and you want to execute the container
 docker exec -it grapheqa-for-habitat bash
 ```
 
-You will need to download the HM3D dataset and set up `grapheqa_habitat.yaml` to point to the directories local to your system that contain the HM3D dataset, Explore-EQA dataset, etc.
+You will need to download the HM3D dataset and set up `grapheqa_habitat.yaml` to point to the directories local to your system that contain the HM3D dataset, Explore-EQA dataset, etc. (see below)
 
 #### Set up Docker workspace for running GraphEQA on Hello Robot's Stretch
 Run the following script to build the docker image locally.
@@ -133,7 +133,7 @@ Navigate to [this repo](https://github.com/SaumyaSaxena/explore-eqa_semnav/tree/
 If running GraphEQA on Stretch RE2 platform, follow the install instructions at our fork of `stretch_ai` [found here](https://github.com/blakerbuchanan/stretch_ai).
 
 ### Installing GraphEQA
-Clone and install GraphEQA in the 'grapheqa' conda environment:
+Both of the above docker containers comes with GraphEQA installed by default. However, it may not have the latest commits. Run `git pull` to ensure the default version is updated. If you wish to develop the `graph_eqa` package, clone and install it in the 'grapheqa' conda environment:
 
 ```bash
 git clone git@github.com:SaumyaSaxena/graph_eqa.git
@@ -153,13 +153,17 @@ If using Anthropic's Claude, add the following line to your .bashrc:
 
 `export ANTHROPIC_API_KEY=<YOUR_GOOGLE_KEY>`
 
+If using Llama's Maverick, set up a together.ai account and API key, then the following line to your .bashrc:
+
+`export TOGETHER_API_KEY=<YOUR_TOGETHER_KEY>`
+
 ## Running GraphEQA with Habitat
 
 ### Config updates
 
 Update paths to Explore-EQA data: Change `question_data_path` and `init_pose_data_path` fields in `grapheqa_habitat.yaml` to correspond to the locations where you downloaded the `questions.csv` and `scene_init_poses.csv` files from the [Explore-EQA dataset](#download-explore-eqa-dataset).
 
-Update paths to HM3D data: Change `scene_data_path` and `semantic_annot_data_path` fields in `grapheqa_habitat.yaml` to correspond to the directories where you downloaded the [HM3D data](#download-the-hm3d-dataset).
+Update paths to HM3D data: Change `scene_data_path` and `semantic_annot_data_path` fields in `grapheqa_habitat.yaml` to correspond to the directories where you downloaded the [HM3D data](#download-the-hm3d-dataset). Update `question_data_path` and `init_pose_data_path` to point to the `explore-eqa_semnav/data/questions.csv` and `explore-eqa_semnav/data/scene_init_poses.csv` files, respectively.
 
 ### Run script
 To run GraphEQA with Habitat Sim, run:

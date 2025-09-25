@@ -112,7 +112,9 @@ RUN source activate grapheqa \
     && pip install -e . \
     && pip install numpy-quaternion \
     && pip install torch torchvision \
-    && pip install google-generativeai
+    && pip install google-generativeai \
+    && pip install together \
+    && pip install anthropic
 
 # Stretch AI Pyaudio
 RUN apt-get update && apt-get install -y \
