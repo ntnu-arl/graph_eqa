@@ -102,3 +102,8 @@ def get_latest_image(output_folder):
     png_files = [file for file in os.listdir(output_folder) if file.startswith('current_img_')]
     indices = [int(f.split('current_img_')[1].split('.png')[0]) for f in png_files]
     return output_folder / f"current_img_{np.max(indices)}.png"
+
+def check_if_multifloor(traj):
+    mean = sum(traj) / traj.shape[0]
+    variance = sum((traj - mean)**2) / traj.shape[0]
+    return np.sqrt(variance) > 0.5
