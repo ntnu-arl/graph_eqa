@@ -15,9 +15,7 @@ from graph_eqa.occupancy_mapping.tsdf import TSDFPlanner
 from graph_eqa.utils.data_utils import load_eqa_data, get_instruction_from_eqa_data, get_traj_len_from_poses
 from graph_eqa.utils.hydra_utils import initialize_hydra_pipeline
 
-
 from graph_eqa.scene_graph.scene_graph_sim import SceneGraphSim
-from graph_eqa.planners import VLMPlannerEQAGemini, VLMPlannerEQAGPT, VLMPlannerEQAClaude, VLMPlannerEQALlama4
 from graph_eqa.envs.habitat_interface import HabitatInterface
 
 import habitat_sim
@@ -34,7 +32,7 @@ def main(cfg):
     eqa_enrich_labels = OmegaConf.load(Path(__file__).resolve().parent.parent / cfg.data.explore_eqa_dataset_enrich_labels)
 
     if not cfg.data.use_semantic_data:
-        from hydra_python.detection.detic_segmenter import DeticSegmenter
+        from graph_eqa.detection.detic_segmenter import DeticSegmenter
         segmenter = DeticSegmenter(cfg)
     else:
         segmenter = None
@@ -100,7 +98,6 @@ def main(cfg):
             rr_logger, 
             device=device, 
             clean_ques_ans=clean_ques_ans,
-            # enrich_object_labels=eqa_enrich_labels[f'{question_ind}_{question_data["scene"]}']['labels'])
             enrich_object_labels=label)
 
         # Get poses for hydra at init view
@@ -119,24 +116,28 @@ def main(cfg):
         )
 
         if 'gpt' in cfg.vlm.name.lower():
+            from graph_eqa.planners.vlm_planner_gpt import VLMPlannerEQAGPT
             vlm_planner = VLMPlannerEQAGPT(
                 cfg.vlm,
                 sg_sim,
                 vlm_question, vlm_pred_candidates, choices, answer, 
                 question_path)
         elif 'gemini' in cfg.vlm.name.lower():
+            from graph_eqa.planners.vlm_planner_gemini import VLMPlannerEQAGemini
             vlm_planner = VLMPlannerEQAGemini(
                 cfg.vlm,
                 sg_sim,
                 vlm_question, vlm_pred_candidates, choices, answer, 
                 question_path)
         elif 'claude' in cfg.vlm.name.lower():
+            from graph_eqa.planners.vlm_planner_claude import VLMPlannerEQAClaude
             vlm_planner = VLMPlannerEQAClaude(
                 cfg.vlm,
                 sg_sim,
                 vlm_question, vlm_pred_candidates, choices, answer, 
                 question_path)
         elif 'llama' in cfg.vlm.name.lower():
+            from graph_eqa.planners.vlm_planner_llama import VLMPlannerEQALlama4
             vlm_planner = VLMPlannerEQALlama4(
                 cfg.vlm,
                 sg_sim,

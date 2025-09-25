@@ -15,7 +15,8 @@ setup(
         "networkx",
         "SentencePiece",
         "anthropic",
-        "google-generativeai"
+        "google-generativeai",
+        "together"
     ],
     include_package_data=True,
 )

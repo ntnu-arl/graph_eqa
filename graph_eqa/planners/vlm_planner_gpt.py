@@ -8,10 +8,6 @@ from openai import OpenAI
 from graph_eqa.utils.data_utils import get_latest_image
 from pydantic import BaseModel
 
-# client = OpenAI(
-#     organization='org-9eg1dYLvm9Vnx13YZieDfE9n',
-#     project='proj_rZU06lthKefMBx9rE3YGD2Um',
-# )
 client = OpenAI()
 
 def encode_image(image_path):
