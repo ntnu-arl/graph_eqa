@@ -84,10 +84,10 @@ def main(cfg):
             rr_logger=rr_logger,
         )
 
-        if f'{question_ind}_{question_data["scene"]}' in eqa_enrich_labels:
-            label = eqa_enrich_labels[f'{question_ind}_{question_data["scene"]}']['labels']
-        else:
-            label = ' '
+        # if f'{question_ind}_{question_data["scene"]}' in eqa_enrich_labels:
+        #     label = eqa_enrich_labels[f'{question_ind}_{question_data["scene"]}']['labels']
+        # else:
+        #     label = ' '
 
         sg_sim = SceneGraphSim(
             cfg, 
