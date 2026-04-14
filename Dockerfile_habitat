@@ -58,7 +58,7 @@ RUN mkdir -p catkin_ws/src \
 	&& catkin init \
 	&& catkin config -DCMAKE_BUILD_TYPE=Release \
 	&& cd src \
-	&& git clone -b grapheqa https://github.com/blakerbuchanan/Hydra ./hydra \
+	&& git clone -b grapheqa https://github.com/ntnu-arl/Hydra_grapheqa.git ./hydra \
 	&& sed -i -E 's|git@github\.com:(.*)\.git|https://github.com/\1.git|g' hydra/install/hydra.rosinstall \
 	&& vcs import . < hydra/install/hydra.rosinstall
 
@@ -82,9 +82,7 @@ RUN curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/downloa
 RUN bash Miniforge3-$(uname)-$(uname -m).sh -b
 # Add mamba to the path
 ENV PATH /root/miniforge3/bin:$PATH
-RUN mamba create -n "grapheqa" python=3.10 -y \
-    && mamba init
-
+RUN mamba create -n "grapheqa" python=3.10 -y 
 WORKDIR /catkin_ws
 RUN source activate grapheqa \
     && source /opt/ros/noetic/setup.bash \
@@ -101,12 +99,12 @@ RUN source /catkin_ws/devel/setup.bash \
     && source ../../devel/setup.bash \
     && source activate grapheqa \
     && export CMAKE_ARGS="-DCMAKE_POLICY_VERSION_MINIMUM=3.5" \
-    && pip install -e .
+    && pip install --no-build-isolation -e .
 
 WORKDIR /root
 
 RUN source activate grapheqa \
-    && git clone https://github.com/SaumyaSaxena/graph_eqa.git \
+    && git clone https://github.com/ntnu-arl/graph_eqa.git \
     && cd graph_eqa \
     && pip install sentencepiece \
     && pip install -e . \

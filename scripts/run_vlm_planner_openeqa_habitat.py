@@ -244,7 +244,7 @@ def main(cfg):
             'answer_id': answer,
             'choices': choices,
             'answer_output': answer_output,
-            'is_multifloor': is_multifloor,
+            'is_multifloor': False,
         }
         log_experiment_status(experiment_id, succ, metrics=metrics, filename=results_filename)
         habitat_data._sim.close(destroy=True)

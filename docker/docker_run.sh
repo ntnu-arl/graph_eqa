@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Name of the Docker container
-CONTAINER_NAME="grapheqa-for-stretch"
+CONTAINER_NAME="grapheqa-for-habitat"
 
 # Docker image to use
-DOCKER_IMAGE="blakerbuchanan/grapheqa_for_stretch:0.0.1"
+DOCKER_IMAGE="blakerbuchanan/grapheqa_for_habitat:0.0.1"
 
 # Path to the workspace directory
 # You should be in the grapheqa_ws directory
@@ -28,7 +28,6 @@ docker run -it \
   -v $SSH_AUTH_SOCK_VAR:/run/ssh-agent \
   -e SSH_AUTH_SOCK=/run/ssh-agent \
   -v $WORKSPACE_DIR:/workspace:cached \
-   --runtime nvidia \
    --rm \
   $DOCKER_IMAGE \
   /bin/bash
