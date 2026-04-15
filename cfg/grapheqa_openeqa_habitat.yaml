@@ -14,6 +14,7 @@ data:
   openeqa_choices_data_path: '/workspace/data/scene_graphs_datasets/habitat-sim-data/versioned_data/hm3d-0.2/hm3d/open-eqa-choices.json'
   use_semantic_data: True
   use_multifloor_questions: False
+  filter_floorplan: True
 
 logging:
   output_parent_dir: results

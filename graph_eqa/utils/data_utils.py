@@ -60,6 +60,8 @@ def load_openeqa_data(cfg):
         if 'hm3d-v0' in data['episode_history']:
             scene_id = init_poses[data['episode_history']]['scene_id'].split('/')[0]
             data['scene'] = scene_id
+            # if cfg.filter_floorplan:
+
             if cfg.use_semantic_data:
                 if scene_id in semantic_scenes:
                     if cfg.use_multifloor_questions:
