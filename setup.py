@@ -6,7 +6,7 @@ setup(
     install_requires=[
         "imageio",
         "omegaconf", 
-        "rerun-sdk==0.26.2",
+        "rerun-sdk",
         "opencv-python",
         "openai", 
         "transformers",
