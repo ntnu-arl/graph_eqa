@@ -17,7 +17,9 @@ docker run -it \
   -e NVIDIA_VISIBLE_DEVICES=all \
   -v "$SSH_AUTH_SOCK_VAR:/run/ssh-agent" \
   -e SSH_AUTH_SOCK=/run/ssh-agent \
-  -v "$WORKSPACE_DIR:/workspace" \
+  -v $WORKSPACE_DIR:/workspace \
+  -v /media/albert/ARLAlbert:/workspace/data \
+  -e OPENAI_API_KEY=$OPENAI_API_KEY \
   --rm \
   "$DOCKER_IMAGE" \
   /bin/bash

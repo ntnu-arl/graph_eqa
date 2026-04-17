@@ -1,6 +1,7 @@
 import csv, os, ast
 import numpy as np
 import json
+from pathlib import Path
 
 def load_eqa_data(cfg):
     # Load dataset
@@ -9,19 +10,6 @@ def load_eqa_data(cfg):
             {k: v for k, v in row.items()}
             for row in csv.DictReader(f, skipinitialspace=True)
         ]
-    
-    # Filter to include only scenes with semantic annotations
-    semantic_scenes = [f for f in os.listdir(cfg.semantic_annot_data_path) if os.path.isdir(os.path.join(cfg.semantic_annot_data_path, f))]
-
-    filtered_question_data = []
-    if cfg.use_semantic_data:
-        for data in questions_data:
-            if data['scene'] in semantic_scenes:
-                filtered_question_data.append(data)
-    else:
-        for data in questions_data:
-            if data['scene'] not in semantic_scenes:
-                filtered_question_data.append(data)
 
     with open(cfg.init_pose_data_path) as f:
         init_pose_data = {}
@@ -34,6 +22,31 @@ def load_eqa_data(cfg):
                 ],
                 "init_angle": float(row["init_angle"]),
             }
+    
+    # Filter to include only scenes with semantic annotations
+    semantic_scenes = [f for f in os.listdir(cfg.semantic_annot_data_path) if os.path.isdir(os.path.join(cfg.semantic_annot_data_path, f))]
+
+    filtered_question_data = []
+    if cfg.use_semantic_data:
+        for data in questions_data:
+            scene_dir = Path(cfg.scene_data_path) / data['scene']
+            floorplan_path = (
+                scene_dir / f"explore_eqa_regions_{data['floor']}" / "topological_graph.json"
+            )
+            if cfg.filter_floorplan and not floorplan_path.exists():
+                continue
+            if data['scene'] in semantic_scenes:
+                filtered_question_data.append(data)
+    else:
+        for data in questions_data:
+            scene_dir = Path(cfg.scene_data_path) / data['scene']
+            floorplan_path = (
+                scene_dir / f"explore_eqa_regions_{data['floor']}" / "topological_graph.json"
+            )
+            if cfg.filter_floorplan and not floorplan_path.exists():
+                continue
+            if data['scene'] not in semantic_scenes:
+                filtered_question_data.append(data)
     print(f"Loaded {len(filtered_question_data)} questions.")
     return filtered_question_data, init_pose_data
 
@@ -60,8 +73,10 @@ def load_openeqa_data(cfg):
         if 'hm3d-v0' in data['episode_history']:
             scene_id = init_poses[data['episode_history']]['scene_id'].split('/')[0]
             data['scene'] = scene_id
-            # if cfg.filter_floorplan:
-
+            scene_dir = Path(cfg.scene_data_path) / init_poses[data['episode_history']]['scene_id']
+            floorplan_path = scene_dir.parent / "regions" / "topological_graph.json"
+            if cfg.filter_floorplan and not floorplan_path.exists():
+                continue
             if cfg.use_semantic_data:
                 if scene_id in semantic_scenes:
                     if cfg.use_multifloor_questions:

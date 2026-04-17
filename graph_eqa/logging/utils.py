@@ -22,4 +22,4 @@ def log_experiment_status(experiment_id, success, metrics=None, filename='experi
 
 def should_skip_experiment(experiment_id, filename='experiment_status.json'):
     data = load_experiment_data(filename)
-    return experiment_id in data
+    return any(experiment_id in experiment for experiment in data.keys())
