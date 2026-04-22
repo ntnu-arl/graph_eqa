@@ -27,7 +27,7 @@ def main(cfg):
     output_path = Path(__file__).resolve().parent.parent / cfg.output_path
     os.makedirs(str(output_path), exist_ok=True)
     results_filename = output_path / f'{cfg.results_filename}.json'
-    device = f"cuda:{cfg.gpu}" if torch.cuda.is_available() else "cpu"
+    device = f"cuda:{cfg.gpu}" if torch.cuda.is_available() and cfg.use_gpu else "cpu"
 
     if not cfg.data.use_semantic_data:
         from graph_eqa.detection.detic_segmenter import DeticSegmenter
@@ -112,6 +112,26 @@ def main(cfg):
             save_image=cfg.vlm.use_image,
             segmenter=segmenter,
         )
+        if len(tsdf_planner.frontier_to_sample_normal) == 0 or len(sg_sim.object_node_ids) == 0:
+            click.secho(f"No frontier or object detected at initial view for question {question_ind}. Skipping...", fg="red",)
+            metrics = {
+                'vlm_steps': 0,
+                'overall_steps': 0,
+                'is_confident': False,
+                'confidence_level': 0.0,
+                'traj_length': 0.0,
+                'category': question_data["category"],
+                'question': question_data["question"],
+                'answer': question_data["answer"],
+                'answer_id': answer,
+                'choices': choices,
+                'answer_output': "",
+                'is_multifloor': False,
+            }
+            log_experiment_status(experiment_id, False, metrics=metrics, filename=results_filename)
+            habitat_data._sim.close(destroy=True)
+            pipeline.save()
+            continue
 
         if 'gpt' in cfg.vlm.name.lower():
             from graph_eqa.planners.vlm_planner_gpt import VLMPlannerEQAGPT
@@ -221,6 +241,9 @@ def main(cfg):
                         save_image=cfg.vlm.use_image,
                         segmenter=segmenter,
                     )
+                    if len(tsdf_planner.frontier_to_sample_normal) == 0 or len(sg_sim.object_node_ids) == 0:
+                        click.secho(f"No frontier or object detected after executing trajectory at overall step {cnt_step}. Skipping...", fg="red",)
+                        break
                     traj_length += get_traj_len_from_poses(poses)
 
                     ## If trajectory successfully executed

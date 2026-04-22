@@ -14,7 +14,7 @@ from omegaconf import OmegaConf
 
 # Detic libraries
 
-sys.path.insert(0, '/home/saumyas/semnav_workspace/src/stretch_ai/src/stretch/perception/detection/detic/Detic/third_party/CenterNet2/')
+sys.path.insert(0, '/root/stretch_ai/src/stretch/perception/detection/detic/Detic/third_party/CenterNet2/')
 from centernet.config import add_centernet_config
 from stretch.perception.detection.detic.Detic.detic.config import add_detic_config
 from stretch.perception.detection.utils import filter_depth, overlay_masks
@@ -74,6 +74,7 @@ class DeticSegmenter:
         cfg.MODEL.ROI_BOX_HEAD.ZEROSHOT_WEIGHT_PATH = "rand"
         cfg.MODEL.ROI_BOX_HEAD.CAT_FREQ_PATH = cfg.MODEL.ROI_BOX_HEAD.CAT_FREQ_PATH
         cfg.MODEL.ROI_HEADS.ONE_CLASS_PER_PROPOSAL = True
+        cfg.MODEL.DEVICE = config.device
         cfg.freeze()
         return cfg
 

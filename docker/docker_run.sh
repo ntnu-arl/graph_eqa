@@ -1,33 +1,37 @@
 #!/bin/bash
 
-# Name of the Docker container
-CONTAINER_NAME="grapheqa-for-habitat"
-
-# Docker image to use
-DOCKER_IMAGE="blakerbuchanan/grapheqa_for_habitat:0.0.1"
-
-# Path to the workspace directory
-# You should be in the grapheqa_ws directory
+CONTAINER_NAME="grapheqa-for-stretch"
+DOCKER_IMAGE="blakerbuchanan/grapheqa_for_stretch:0.0.2"
 WORKSPACE_DIR="$(pwd)"
+SSH_AUTH_SOCK_VAR="$SSH_AUTH_SOCK"
 
-# Environment variables
-SSH_AUTH_SOCK_VAR=$SSH_AUTH_SOCK
+# docker run -it --entrypoint /bin/bash\
+#   --name "$CONTAINER_NAME" \
+#   --privileged \
+#   --net=host \
+#   --env="DISPLAY=$DISPLAY" \
+#   --env="XAUTHORITY=$XAUTHORITY" \
+#   --gpus '"device=0"' \
+#   -v /tmp/.X11-unix:/tmp/.X11-unix \
+#   -e QT_X11_NO_MITSHM=1 \
+#   -e NVIDIA_VISIBLE_DEVICES=0 \
+#   -e NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics \
+#   -e LD_LIBRARY_PATH=/usr/lib/nvidia-535:$LD_LIBRARY_PATH \
+#   -v "$SSH_AUTH_SOCK_VAR:/run/ssh-agent" \
+#   -e SSH_AUTH_SOCK=/run/ssh-agent \
+#   -v "$WORKSPACE_DIR:/workspace:cached" \
+#   -v /media/albert/ExtremeAlbert6/:/workspace/data \
+#   --rm \
+#   "$DOCKER_IMAGE"
 
-# Run the Docker container with the appropriate arguments
-docker run -it \
-  --name $CONTAINER_NAME \
-  --privileged \
+docker run -it --rm \
+  --name grapheqa-for-stretch \
+  --gpus '"device=0"' \
   --net=host \
-  --env="DISPLAY=$DISPLAY" \
-  --env="XAUTHORITY:$XAUTHORITY" \
-  --gpus all \
-  -v /tmp/.X11-unix:/tmp/.X11-unix \
-  -e QT_X11_NO_MITSHM=1 \
-  -e NVIDIA_VISIBLE_DEVICES=all \
-  -e LD_LIBRARY_PATH=/usr/lib/nvidia-535:$LD_LIBRARY_PATH \
-  -v $SSH_AUTH_SOCK_VAR:/run/ssh-agent \
-  -e SSH_AUTH_SOCK=/run/ssh-agent \
-  -v $WORKSPACE_DIR:/workspace:cached \
-   --rm \
-  $DOCKER_IMAGE \
-  /bin/bash
+  -e NVIDIA_VISIBLE_DEVICES=0 \
+  -e NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics \
+  -e CUDA_VISIBLE_DEVICES=0 \
+  -v "$(pwd):/workspace:cached" \
+  -v /media/albert/ExtremeAlbert6/:/workspace/data \
+  --entrypoint /bin/bash \
+  blakerbuchanan/grapheqa_for_stretch:0.0.2

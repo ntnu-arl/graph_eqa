@@ -1,20 +1,28 @@
 # General
 seed: 42
 exp_name: grapheqa_${vlm.name}_openeqa
-output_path: outputs/${exp_name}_test_new_json
+output_path: outputs/${exp_name}_detic_segm
 results_filename: ${vlm.name}_images_${vlm.use_image}
 gpu: 0 
-sim_gpu: 0
+sim_gpu: -1
+use_gpu: True
 
 data:
-  semantic_annot_data_path: '/workspace/data/scene_graphs_datasets/habitat-sim-data/versioned_data/hm3d-0.2/hm3d/val/hm3d_annotated_val_basis.scene_dataset_config.json'
-  scene_data_path: '/workspace/data/scene_graphs_datasets/habitat-sim-data/versioned_data/hm3d-0.2/hm3d/val'
-  openeqa_question_data_path: '/workspace/data/scene_graphs_datasets/habitat-sim-data/versioned_data/hm3d-0.2/hm3d/open-eqa-v0.json'
-  openeqa_init_pose_data_path: '/workspace/data/scene_graphs_datasets/habitat-sim-data/versioned_data/hm3d-0.2/hm3d/openeqa_init_trajs.json'
-  openeqa_choices_data_path: '/workspace/data/scene_graphs_datasets/habitat-sim-data/versioned_data/hm3d-0.2/hm3d/open-eqa-choices.json'
-  use_semantic_data: True
+  semantic_annot_data_path: '/workspace/data/habitat-sim-data/versioned_data/hm3d-0.2/hm3d/val/hm3d_annotated_val_basis.scene_dataset_config.json'
+  scene_data_path: '/workspace/data/habitat-sim-data/versioned_data/hm3d-0.2/hm3d/val'
+  openeqa_question_data_path: '/workspace/data/habitat-sim-data/versioned_data/hm3d-0.2/hm3d/open-eqa-v0.json'
+  openeqa_init_pose_data_path: '/workspace/data/habitat-sim-data/versioned_data/hm3d-0.2/hm3d/openeqa_init_trajs.json'
+  openeqa_choices_data_path: '/workspace/data/habitat-sim-data/versioned_data/hm3d-0.2/hm3d/open-eqa-choices.json'
+  use_semantic_data: False
   use_multifloor_questions: False
   filter_floorplan: True
+
+detic:
+  custom_vocabulary_path: /catkin_ws/src/hydra/config/label_spaces/hm3d_label_space.yaml
+  config_file: /root/stretch_ai/src/stretch/perception/detection/detic/Detic/configs/Detic_LCOCOI21k_CLIP_SwinB_896b32_4x_ft4x_max-size.yaml
+  confidence_threshold: 0.4
+  weights: /root/stretch_ai/src/stretch/perception/detection/detic/Detic/models/Detic_LCOCOI21k_CLIP_SwinB_896b32_4x_ft4x_max-size.pth
+  device: cuda:0
 
 logging:
   output_parent_dir: results

@@ -45,7 +45,7 @@ def load_eqa_data(cfg):
             )
             if cfg.filter_floorplan and not floorplan_path.exists():
                 continue
-            if data['scene'] not in semantic_scenes:
+            if data['scene'] in semantic_scenes:
                 filtered_question_data.append(data)
     print(f"Loaded {len(filtered_question_data)} questions.")
     return filtered_question_data, init_pose_data
@@ -85,7 +85,7 @@ def load_openeqa_data(cfg):
                         if not check_if_multifloor(np.array(init_poses[data['episode_history']]['full_traj_pos'])[:,1]):
                             filtered_question_data.append(data)
             else:
-                if scene_id not in semantic_scenes:
+                if scene_id in semantic_scenes:
                     if cfg.use_multifloor_questions:
                         filtered_question_data.append(data)
                     else:

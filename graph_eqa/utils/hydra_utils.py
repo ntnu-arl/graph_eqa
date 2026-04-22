@@ -89,7 +89,8 @@ def initialize_hydra_pipeline(cfg, habitat_data, output_path):
         pipeline_config.label_names = {i: x for i, x in enumerate(habitat_data.colormap.names)}
         habitat_data.colormap.fill_label_space(pipeline_config.label_space) # TODO: check
     else:
-        config_path = Path(__file__).resolve().parent.parent.parent.parent / 'config/label_spaces/hm3d_label_space.yaml'
+        # config_path = Path(__file__).resolve().parent.parent.parent.parent / 'config/label_spaces/hm3d_label_space.yaml'
+        config_path = Path("/catkin_ws/src/hydra/config/label_spaces/hm3d_label_space.yaml")
         hm3d_labelspace = OmegaConf.load(config_path)
         names = [d.name for d in hm3d_labelspace.label_names]
         colormap = hydra.SegmentationColormap.from_names(names=names)

@@ -1,19 +1,27 @@
 # General
 seed: 42
 exp_name: grapheqa_${vlm.name}_hmeqa
-output_path: outputs/${exp_name}_test_new_json
+output_path: outputs/${exp_name}_detic_segm
 results_filename: ${vlm.name}_images_${vlm.use_image}
 gpu: 0 
-sim_gpu: 0
+sim_gpu: -1
+use_gpu: True
 
 data:
-  question_data_path: '/workspace/data/scene_graphs_datasets/habitat-sim-data/versioned_data/hm3d-0.2/hm3d/explore_eqa_questions.csv'
-  init_pose_data_path: '/workspace/data/scene_graphs_datasets/habitat-sim-data/versioned_data/hm3d-0.2/hm3d/explore_eqa_scene_init_poses.csv'
-  semantic_annot_data_path: '/workspace/data/scene_graphs_datasets/habitat-sim-data/versioned_data/hm3d-0.2/hm3d/train/'
-  scene_data_path: '/workspace/data/scene_graphs_datasets/habitat-sim-data/versioned_data/hm3d-0.2/hm3d/train/'
+  question_data_path: '/workspace/data/habitat-sim-data/versioned_data/hm3d-0.2/hm3d/explore_eqa_questions.csv'
+  init_pose_data_path: '/workspace/data/habitat-sim-data/versioned_data/hm3d-0.2/hm3d/explore_eqa_scene_init_poses.csv'
+  semantic_annot_data_path: '/workspace/data/habitat-sim-data/versioned_data/hm3d-0.2/hm3d/train/'
+  scene_data_path: '/workspace/data/habitat-sim-data/versioned_data/hm3d-0.2/hm3d/train/'
   explore_eqa_dataset_enrich_labels: 'cfg/explore_eqa_dataset_enrich_labels.yaml'
-  use_semantic_data: True
+  use_semantic_data: False
   filter_floorplan: True
+
+detic:
+  custom_vocabulary_path: /catkin_ws/src/hydra/config/label_spaces/hm3d_label_space.yaml
+  config_file: /root/stretch_ai/src/stretch/perception/detection/detic/Detic/configs/Detic_LCOCOI21k_CLIP_SwinB_896b32_4x_ft4x_max-size.yaml
+  confidence_threshold: 0.4
+  weights: /root/stretch_ai/src/stretch/perception/detection/detic/Detic/models/Detic_LCOCOI21k_CLIP_SwinB_896b32_4x_ft4x_max-size.pth
+  device: cuda:0
 
 logging:
   output_parent_dir: results

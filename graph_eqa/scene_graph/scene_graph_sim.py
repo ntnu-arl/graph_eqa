@@ -256,34 +256,35 @@ class SceneGraphSim:
             self.filtered_obj_positions = np.array(self.filtered_obj_positions)
             self.filtered_obj_ids = np.array(self.filtered_obj_ids)
             self._frontier_node_ids = []
-            for i in range(frontier_nodes.shape[0]):
-                attr={}
-                attr['position'] = list(frontier_nodes[i])
-                attr['name'] = 'frontier'
-                attr['layer'] = 2
-                nodeid = f'frontier_{i}'
-                self._frontier_node_ids.append(nodeid)
-                self.filtered_netx_graph.add_nodes_from([(nodeid, attr)])
+            if len(self.filtered_obj_positions)>0:
+                for i in range(frontier_nodes.shape[0]):
+                    attr={}
+                    attr['position'] = list(frontier_nodes[i])
+                    attr['name'] = 'frontier'
+                    attr['layer'] = 2
+                    nodeid = f'frontier_{i}'
+                    self._frontier_node_ids.append(nodeid)
+                    self.filtered_netx_graph.add_nodes_from([(nodeid, attr)])
 
-                dist = np.linalg.norm((np.array(frontier_nodes[i]) - self.filtered_obj_positions), axis=1)
-                relevant_objs = dist < self.thresh
-                relevent_node_ids = self.filtered_obj_ids[relevant_objs]
-                relevant_obj_pos = self.filtered_obj_positions[relevant_objs]
+                    dist = np.linalg.norm((np.array(frontier_nodes[i]) - self.filtered_obj_positions), axis=1)
+                    relevant_objs = dist < self.thresh
+                    relevent_node_ids = self.filtered_obj_ids[relevant_objs]
+                    relevant_obj_pos = self.filtered_obj_positions[relevant_objs]
 
-                if self.enrich_frontiers:
-                    edge_type = 'frontier-to-object'
-                    
-                    for obj_id, obj_pos in zip(relevent_node_ids,relevant_obj_pos):
-                        edgeid = f'{nodeid}-to-{obj_id}'
+                    if self.enrich_frontiers:
+                        edge_type = 'frontier-to-object'
+                        
+                        for obj_id, obj_pos in zip(relevent_node_ids,relevant_obj_pos):
+                            edgeid = f'{nodeid}-to-{obj_id}'
 
-                        self.filtered_netx_graph.add_edges_from([(
-                            nodeid, obj_id,
-                            {'source_name': 'frontier',
-                            'target_name': 'object',
-                            'type': edge_type}
-                        )])
-                        if self.rr_logger is not None:
-                            self.rr_logger.log_hydra_graph(is_node=False, edge_type=edge_type, edgeid=edgeid, node_pos_source=frontier_nodes[i], node_pos_target=obj_pos)
+                            self.filtered_netx_graph.add_edges_from([(
+                                nodeid, obj_id,
+                                {'source_name': 'frontier',
+                                'target_name': 'object',
+                                'type': edge_type}
+                            )])
+                            if self.rr_logger is not None:
+                                self.rr_logger.log_hydra_graph(is_node=False, edge_type=edge_type, edgeid=edgeid, node_pos_source=frontier_nodes[i], node_pos_target=obj_pos)
 
     def add_room_labels_to_sg(self):
         self._room_names = []
@@ -414,7 +415,10 @@ class SceneGraphSim:
             useful_img_idxs = num_black_pixels < 0.3*w*h
             useful_imgs = imgs_rgb[useful_img_idxs]
             sampled_images = useful_imgs[::self.sg_cfg.img_subsample_freq]
-
+            if  len(sampled_images)==0:
+                # optional: log why this happened
+                print("[save_best_image] No sampled images available; skipping image selection.")
+                return
             padding = True if self.sg_cfg.key_frame_selection.use_clip_for_images else "max_length" # HuggingFace says SigLIP was trained on "max_length"
             imgs_embed = self.processor(images=sampled_images, return_tensors="pt", padding=padding).to(self.device)
             with torch.no_grad():
