@@ -23,6 +23,7 @@ import hydra_python
 
 def main(cfg):
     questions_data, init_pose_data, choices_data = load_openeqa_data(cfg.data)
+    use_choices = cfg.vlm.use_choices
 
     output_path = Path(__file__).resolve().parent.parent / cfg.output_path
     os.makedirs(str(output_path), exist_ok=True)
@@ -41,9 +42,8 @@ def main(cfg):
         question_data = questions_data[question_ind]
         question_id = question_data["question_id"]
         scene = init_pose_data[question_data['episode_history']]["scene_id"]
-        choices = choices_data[question_id]['choices']
-
-        answer = choices_data[question_id]["answer_id"]
+        choices = choices_data[question_id]['choices'] if use_choices else None
+        answer = choices_data[question_id]["answer_id"] if use_choices else question_data["answer"]
         experiment_id = f'{question_ind}_{question_id}'
 
         if should_skip_experiment(question_data["question_id"], filename=results_filename):
@@ -126,9 +126,10 @@ def main(cfg):
                 'answer_id': answer,
                 'choices': choices,
                 'answer_output': "",
+                'uses_choices': use_choices,
                 'is_multifloor': False,
             }
-            log_experiment_status(experiment_id, False, metrics=metrics, filename=results_filename)
+            log_experiment_status(experiment_id, False if use_choices else None, metrics=metrics, filename=results_filename)
             habitat_data._sim.close(destroy=True)
             pipeline.save()
             continue
@@ -180,7 +181,7 @@ def main(cfg):
         click.secho(f"Question:\n{vlm_planner._question} \n Answer: {answer}",fg="green",)
 
         num_steps = 20
-        succ = False
+        succ = None if not use_choices else False
         planning_steps = 0
         traj_length = 0.
         for cnt_step in range(num_steps):
@@ -190,16 +191,21 @@ def main(cfg):
             
             if is_confident or (confidence_level>0.9):
 
-                succ = (answer == answer_output)
-                if succ:
-                    successes += 1
-                    result = f"Success at vlm step{planning_steps} for {experiment_id}"
-                    click.secho(result,fg="blue",)
-                    click.secho(f"VLM Planner answer: {answer_output}, Correct answer: {answer}",fg="blue",)
+                if use_choices:
+                    succ = (answer == answer_output)
+                    if succ:
+                        successes += 1
+                        result = f"Success at vlm step{planning_steps} for {experiment_id}"
+                        click.secho(result,fg="blue",)
+                        click.secho(f"VLM Planner answer: {answer_output}, Correct answer: {answer}",fg="blue",)
+                    else:
+                        result = f"Failure at vlm step {planning_steps} for {experiment_id}"
+                        click.secho(result,fg="red",)
+                        click.secho(f"VLM Planner answer: {answer_output}, Correct answer: {answer}",fg="red",)
                 else:
-                    result = f"Failure at vlm step {planning_steps} for {experiment_id}"
-                    click.secho(result,fg="red",)
-                    click.secho(f"VLM Planner answer: {answer_output}, Correct answer: {answer}",fg="red",)
+                    result = f"Planner produced a confident free-form answer at vlm step {planning_steps} for {experiment_id}"
+                    click.secho(result,fg="blue",)
+                    click.secho(f"VLM Planner answer: {answer_output}",fg="blue",)
                 rr_logger.log_text_data(vlm_planner.full_plan + "\n" + result)
                 break
 
@@ -267,6 +273,7 @@ def main(cfg):
             'answer_id': answer,
             'choices': choices,
             'answer_output': answer_output,
+            'uses_choices': use_choices,
             'is_multifloor': False,
         }
         log_experiment_status(experiment_id, succ, metrics=metrics, filename=results_filename)

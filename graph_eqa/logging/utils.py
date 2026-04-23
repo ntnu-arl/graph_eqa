@@ -15,7 +15,9 @@ def save_experiment_data(data=None, filename='experiment_status.json'):
 
 def log_experiment_status(experiment_id, success, metrics=None, filename='experiment_status.json'):
     data = load_experiment_data(filename)
-    data[experiment_id] = {"Success": success}
+    data[experiment_id] = {}
+    if success is not None:
+        data[experiment_id]["Success"] = success
     if metrics:
         data[experiment_id]["metrics"] = metrics
     save_experiment_data(data, filename)

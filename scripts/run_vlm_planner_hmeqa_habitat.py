@@ -21,8 +21,16 @@ from graph_eqa.envs.habitat_interface import HabitatInterface
 import habitat_sim
 import hydra_python
 
+CHOICE_TO_INDEX = {
+    "A": 0,
+    "B": 1,
+    "C": 2,
+    "D": 3,
+}
+
 def main(cfg):
     questions_data, init_pose_data = load_eqa_data(cfg.data)
+    use_choices = cfg.vlm.use_choices
 
     output_path = Path(__file__).resolve().parent.parent / cfg.output_path
     os.makedirs(str(output_path), exist_ok=True)
@@ -42,7 +50,7 @@ def main(cfg):
 
         question_data = questions_data[question_ind]
         scene_floor = question_data["scene"] + "_" + question_data["floor"]
-        answer = question_data["answer"]
+        answer = question_data["answer"] if use_choices else eval(question_data['choices'])[CHOICE_TO_INDEX[question_data["answer"]]]
         experiment_id = f'{question_ind}_{question_data["scene"]}_{question_data["floor"]}'
 
 
@@ -57,7 +65,8 @@ def main(cfg):
         question_path = hydra_python.resolve_output_path(output_path / experiment_id)
         scene_name = f'{cfg.data.scene_data_path}/{question_data["scene"]}/{question_data["scene"][6:]}.basis.glb'
         
-        vlm_question, clean_ques_ans, choices, vlm_pred_candidates = get_instruction_from_eqa_data(question_data)
+        vlm_question, clean_ques_ans, choices, vlm_pred_candidates = get_instruction_from_eqa_data(question_data, use_choices=use_choices)
+        choices = choices if use_choices else None
         habitat_data = HabitatInterface(
             scene_name, 
             cfg=cfg.habitat,
@@ -123,8 +132,14 @@ def main(cfg):
                 'is_confident': False,
                 'confidence_level': 0.0,
                 'traj_length': 0.0,
+                'category': question_data["label"],
+                'question': vlm_question,
+                'answer': answer,
+                'choices': choices,
+                'uses_choices': use_choices,
+                'answer_output': "",
             }
-            log_experiment_status(experiment_id, False, metrics=metrics, filename=results_filename)
+            log_experiment_status(experiment_id, False if use_choices else None, metrics=metrics, filename=results_filename)
             habitat_data._sim.close(destroy=True)
             pipeline.save()
             continue
@@ -164,7 +179,7 @@ def main(cfg):
         click.secho(f"Question:\n{vlm_planner._question} \n Answer: {answer}",fg="green",)
 
         num_steps = 20
-        succ = False
+        succ = False if not use_choices else None
         planning_steps = 0
         traj_length = 0.
         for cnt_step in range(num_steps):
@@ -174,17 +189,22 @@ def main(cfg):
             
             # TODO: Vary this from 0.5 to 0.9
             if is_confident or (confidence_level>0.9):
-
-                succ = (answer == answer_output)
-                if succ:
-                    successes += 1
-                    result = f"Success at vlm step{planning_steps} for {question_ind}:{scene_floor}"
-                    click.secho(result,fg="blue",)
-                    click.secho(f"VLM Planner answer: {answer_output}, Correct answer: {answer}",fg="blue",)
+                
+                if use_choices:
+                    succ = (answer == answer_output)
+                    if succ:
+                        successes += 1
+                        result = f"Success at vlm step{planning_steps} for {question_ind}:{scene_floor}"
+                        click.secho(result,fg="blue",)
+                        click.secho(f"VLM Planner answer: {answer_output}, Correct answer: {answer}",fg="blue",)
+                    else:
+                        result = f"Failure at vlm step {planning_steps} for {question_ind}:{scene_floor}"
+                        click.secho(result,fg="red",)
+                        click.secho(f"VLM Planner answer: {answer_output}, Correct answer: {answer}",fg="red",)
                 else:
-                    result = f"Failure at vlm step {planning_steps} for {question_ind}:{scene_floor}"
-                    click.secho(result,fg="red",)
-                    click.secho(f"VLM Planner answer: {answer_output}, Correct answer: {answer}",fg="red",)
+                    result = f"VLM Planner is confident at vlm step {planning_steps} for {question_ind}:{scene_floor}"
+                    click.secho(result,fg="blue",)
+                    click.secho(f"VLM Planner answer: {answer_output}",fg="blue",)
                 rr_logger.log_text_data(vlm_planner.full_plan + "\n" + result)
                 break
 
@@ -245,7 +265,13 @@ def main(cfg):
             'overall_steps': cnt_step,
             'is_confident': is_confident,
             'confidence_level': confidence_level,
-            'traj_length': traj_length
+            'traj_length': traj_length,
+            'category': question_data["label"],
+            'question': vlm_question,
+            'answer': answer,
+            'choices': choices,
+            'uses_choices': use_choices,
+            'answer_output': answer_output,
         }
         log_experiment_status(experiment_id, succ, metrics=metrics, filename=results_filename)
         habitat_data._sim.close(destroy=True)

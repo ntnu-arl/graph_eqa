@@ -79,35 +79,51 @@ def create_planner_response(frontier_node_list, room_node_list, region_node_list
 
     )
 
+    answer_properties = {
+        'explanation_ans': genai.protos.Schema(
+            type=genai.protos.Type.STRING,
+            description=(
+                "Select the correct answer from the options."
+                if Answer_options is not None
+                else "Provide a short free-form answer grounded in the environment."
+            )
+        ),
+        'explanation_conf': genai.protos.Schema(
+            type=genai.protos.Type.STRING,
+            description="Explain the reasoning behind the confidence level of your answer."
+        ),
+        'confidence_level': genai.protos.Schema(
+            type=genai.protos.Type.NUMBER,
+            description="Rate your level of confidence. Provide a value between 0 and 1; 0 for not confident at all and 1 for absolutely certain that you can answer the question. This value represents your confidence in answering the question correctly, and not confidence pertaining to choosing the next actions."
+        ),
+        'is_confident': genai.protos.Schema(
+            type=genai.protos.Type.BOOLEAN,
+            description="Choose TRUE, if you are very confident about answering the question correctly.  Very IMPORTANT: Only answer TRUE when you have a visual confirmation (from the image) as well as from the scene graph that your answer is correct. Choose TRUE, if you have explored enough and are certain about answering the question correctly and no further exploration will help you answer the question better. Choose 'FALSE', if you are uncertain of the answer. Do not be overconfident. Clarification: This is not your confidence in choosing the next action, but your confidence in answering the question correctly."
+        )
+    }
+    answer_required = ['explanation_ans', 'explanation_conf', 'confidence_level', 'is_confident']
+
+    if Answer_options is None:
+        answer_properties['answer'] = genai.protos.Schema(
+            type=genai.protos.Type.STRING,
+            description="Provide the final short free-form answer."
+        )
+        answer_required.append('answer')
+    else:
+        answer_properties['answer'] = genai.protos.Schema(
+            type=genai.protos.Type.STRING,
+            enum=[member.name for member in Answer_options]
+        )
+        answer_properties['value'] = genai.protos.Schema(
+            type=genai.protos.Type.STRING,
+            enum=[member.value for member in Answer_options]
+        )
+        answer_required.extend(['answer', 'value'])
+
     answer = genai.protos.Schema(
         type=genai.protos.Type.OBJECT,
-        properties={
-            'explanation_ans': genai.protos.Schema(
-                type=genai.protos.Type.STRING,
-                description="Select the correct answer from the options."
-            ),
-            'answer': genai.protos.Schema(
-                type=genai.protos.Type.STRING,
-                enum=[member.name for member in Answer_options]
-            ),
-            'value': genai.protos.Schema(
-                type=genai.protos.Type.STRING,
-                enum=[member.value for member in Answer_options]
-            ),
-            'explanation_conf': genai.protos.Schema(
-                type=genai.protos.Type.STRING,
-                description="Explain the reasoning behind the confidence level of your answer."
-            ),
-            'confidence_level': genai.protos.Schema(
-                type=genai.protos.Type.NUMBER,
-                description="Rate your level of confidence. Provide a value between 0 and 1; 0 for not confident at all and 1 for absolutely certain that you can answer the question. This value represents your confidence in answering the question correctly, and not confidence pertaining to choosing the next actions."
-            ),
-            'is_confident': genai.protos.Schema(
-                type=genai.protos.Type.BOOLEAN,
-                description="Choose TRUE, if you are very confident about answering the question correctly.  Very IMPORTANT: Only answer TRUE when you have a visual confirmation (from the image) as well as from the scene graph that your answer is correct. Choose TRUE, if you have explored enough and are certain about answering the question correctly and no further exploration will help you answer the question better. Choose 'FALSE', if you are uncertain of the answer. Do not be overconfident. Clarification: This is not your confidence in choosing the next action, but your confidence in answering the question correctly."
-            )
-        },
-        required=['explanation_ans', 'answer', 'value', 'explanation_conf', 'confidence_level', 'is_confident']
+        properties=answer_properties,
+        required=answer_required
     )
 
     image_description = genai.protos.Schema(
@@ -168,10 +184,26 @@ class VLMPlannerEQAGemini:
         self.full_plan = ''
         self._t = 0
         self._add_history = cfg.add_history
+        self._use_choices = getattr(cfg, "use_choices", True)
 
         self._outputs_to_save = [f'Question: {self._question}. \n Answer: {self._answer} \n']
         self.sg_sim = sg_sim
         #self.temp = cfg.temp
+
+    @property
+    def formatted_question(self):
+        if not self._use_choices or not self.choices:
+            return self._question
+
+        choice_lines = [
+            f"{token}: {choice}"
+            for token, choice in zip(self.vlm_pred_candidates, self.choices)
+        ]
+        return f"{self._question}\nAnswer choices:\n" + "\n".join(choice_lines)
+
+    @staticmethod
+    def _extract_answer_text(answer):
+        return answer.get("answer") if "value" not in answer else answer["answer"]
 
     @property
     def t(self):
@@ -186,7 +218,9 @@ class VLMPlannerEQAGemini:
             frontier_node_list = Enum('frontier_node_list', {'frontier_0': 'Do not choose this option. No more frontiers left.'}, type=str)
         room_node_list = Enum('room_node_list', {id: name for id, name in zip(self.sg_sim.room_node_ids, self.sg_sim.room_node_names)}, type=str)
         region_node_list = Enum('region_node_list', {ac: ac for ac in self.sg_sim.region_node_ids}, type=str)
-        Answer_options = Enum('Answer_options', {token: choice for token, choice in zip(self.vlm_pred_candidates, self.choices)}, type=str)
+        Answer_options = None
+        if self._use_choices and self.choices:
+            Answer_options = Enum('Answer_options', {token: choice for token, choice in zip(self.vlm_pred_candidates, self.choices)}, type=str)
         return frontier_node_list, room_node_list, region_node_list, object_node_list, Answer_options
     
     
@@ -204,11 +238,18 @@ class VLMPlannerEQAGemini:
         if self._use_image:
             current_state_des += " Additionally, you will also be given the current view of the agent as an image. "
         
+        question_type = "a multiple-choice question" if self._use_choices and self.choices else "a question"
+        answer_instruction = (
+            "Select the correct answer from the provided answer choices."
+            if self._use_choices and self.choices
+            else "Answer the question directly using a short free-form answer grounded in the current environment."
+        )
+
         prompt = f'''You are an excellent hierarchical graph planning agent. 
-            Your goal is to navigate an unseen environment to confidently answer a multiple-choice question about the environment.
+            Your goal is to navigate an unseen environment to confidently answer {question_type} about the environment.
             As you explore the environment, your sensors are building a scene graph representation (in json format) and you have access to that scene graph.  
             {scene_graph_desc}. {current_state_des} 
-            Given the current state information, try to answer the question. Explain the reasoning for selecting the answer.
+            Given the current state information, try to answer the question. {answer_instruction} Explain the reasoning for selecting the answer.
             Finally, report whether you are confident in answering the question. 
             Explain the reasoning behind the confidence level of your answer. Rate your level of confidence. 
             Provide a value between 0 and 1; 0 for not confident at all and 1 for absolutely certain.
@@ -233,10 +274,10 @@ class VLMPlannerEQAGemini:
             '''
 
         prompt_no_image = f'''You are an excellent hierarchical graph planning agent. 
-            Your goal is to navigate an unseen environment to confidently answer a multiple-choice question about the environment.
+            Your goal is to navigate an unseen environment to confidently answer {question_type} about the environment.
             As you explore the environment, your sensors are building a scene graph representation (in json format) and you have access to that scene graph.  
             {scene_graph_desc}. {current_state_des} 
-            Given the current state information, try to answer the question. Explain the reasoning for selecting the answer.
+            Given the current state information, try to answer the question. {answer_instruction} Explain the reasoning for selecting the answer.
             Finally, report whether you are confident in answering the question. 
             Explain the reasoning behind the confidence level of your answer. Rate your level of confidence. 
             Provide a value between 0 and 1; 0 for not confident at all and 1 for absolutely certain.
@@ -279,7 +320,7 @@ class VLMPlannerEQAGemini:
         elif step['step_type'] == 'Goto_frontier_node_step':
             action = f"Goto frontier_id: {step['choice']}"
         else:
-            action = f"Answer: {step['choice']}: {step['value']}.  Confident: {step['is_confident']}, Confidence level:{step['confidence_level']}"
+            action = f"Answer: {step['choice']}.  Confident: {step['is_confident']}, Confidence level:{step['confidence_level']}"
         
         last_step = f'''
             [Agent state(t={self.t}): {agent_state}, 
@@ -292,7 +333,7 @@ class VLMPlannerEQAGemini:
         # TODO(blake):
         messages=[
             {"role": "model", "parts": [{"text": f"AGENT ROLE: {self.agent_role_prompt}"}]},
-            {"role": "model", "parts": [{"text": f"QUESTION: {self._question}"}]},
+            {"role": "model", "parts": [{"text": f"QUESTION: {self.formatted_question}"}]},
             {"role": "user", "parts": [{"text": f"CURRENT STATE: {current_state_prompt}."}]},
         ]
         
@@ -401,8 +442,10 @@ class VLMPlannerEQAGemini:
         with open(self._output_path / "llm_outputs.json", "w") as text_file:
             text_file.write(self.full_plan)
 
+        answer_text = self._extract_answer_text(answer)
+
         if step is None or step['choice'] == 'Do not choose this option. No more frontiers left.':
-            return None, None, answer['is_confident'], answer['confidence_level'], answer['answer']
+            return None, None, answer['is_confident'], answer['confidence_level'], answer_text
         
 
         if self._add_history:
@@ -412,4 +455,4 @@ class VLMPlannerEQAGemini:
 
         target_pose = self.sg_sim.get_position_from_id(step['choice'])
         target_id = step['choice']
-        return target_pose, target_id, answer['is_confident'], answer['confidence_level'], answer['answer']
+        return target_pose, target_id, answer['is_confident'], answer['confidence_level'], answer_text

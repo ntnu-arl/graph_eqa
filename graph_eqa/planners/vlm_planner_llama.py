@@ -31,12 +31,20 @@ def create_planner_response(frontier_node_list, room_node_list, region_node_list
         # region_id: region_node_list
         object_id: object_node_list
 
-    class Answer(BaseModel):
-        explanation_ans: str
-        answer: Answer_options
-        explanation_conf: str
-        confidence_level: float
-        is_confident: bool
+    if Answer_options is None:
+        class Answer(BaseModel):
+            explanation_ans: str
+            answer: str
+            explanation_conf: str
+            confidence_level: float
+            is_confident: bool
+    else:
+        class Answer(BaseModel):
+            explanation_ans: str
+            answer: Answer_options
+            explanation_conf: str
+            confidence_level: float
+            is_confident: bool
 
     class PlannerResponse(BaseModel):
         steps: List[Union[Goto_object_node_step, Goto_frontier_node_step]]
@@ -86,9 +94,25 @@ class VLMPlannerEQALlama4:
         self.full_plan = ''
         self._t = 0
         self._add_history = cfg.add_history
+        self._use_choices = getattr(cfg, "use_choices", True)
 
         self._outputs_to_save = [f'Question: {self._question}. \n Answer: {self._answer} \n']
         self.sg_sim = sg_sim
+
+    @property
+    def formatted_question(self):
+        if not self._use_choices or not self.choices:
+            return self._question
+
+        choice_lines = [
+            f"{token}: {choice}"
+            for token, choice in zip(self.vlm_pred_candidates, self.choices)
+        ]
+        return f"{self._question}\nAnswer choices:\n" + "\n".join(choice_lines)
+
+    @staticmethod
+    def _extract_answer_text(answer):
+        return answer['value'] if 'value' in answer else answer['answer']
 
     @property
     def t(self):
@@ -107,7 +131,9 @@ class VLMPlannerEQALlama4:
         #room_node_list = Enum('room_node_list', {id: name for id, name in zip(self.sg_sim.room_node_ids, self.sg_sim.room_node_names)}, type=str)
         room_node_list = Enum('room_node_list', {name: id for id, name in zip(self.sg_sim.room_node_ids, self.sg_sim.room_node_names)}, type=str)
         region_node_list = Enum('region_node_list', {ac: ac for ac in self.sg_sim.region_node_ids}, type=str)
-        Answer_options = Enum('Answer_options', {token: choice for token, choice in zip(self.vlm_pred_candidates, self.choices)}, type=str)
+        Answer_options = None
+        if self._use_choices and self.choices:
+            Answer_options = Enum('Answer_options', {token: choice for token, choice in zip(self.vlm_pred_candidates, self.choices)}, type=str)
         return frontier_node_list, room_node_list, region_node_list, object_node_list, Answer_options
 
     @property
@@ -124,11 +150,18 @@ class VLMPlannerEQALlama4:
         if self._use_image:
             current_state_des += " Additionally, you will also be given the current view of the agent as an image. "
 
+        question_type = "a multiple-choice question" if self._use_choices and self.choices else "a question"
+        answer_instruction = (
+            "Select the correct answer from the provided answer choices."
+            if self._use_choices and self.choices
+            else "Answer the question directly using a short free-form answer grounded in the current environment."
+        )
+
         prompt = f'''You are an excellent hierarchical graph planning agent.
-            Your goal is to navigate an unseen environment to confidently answer a multiple-choice question about the environment.
+            Your goal is to navigate an unseen environment to confidently answer {question_type} about the environment.
             As you explore the environment, your sensors are building a scene graph representation (in json format) and you have access to that scene graph.
             {scene_graph_desc}. {current_state_des}
-            Given the current state information, try to answer the question. Explain the reasoning for selecting the answer.
+            Given the current state information, try to answer the question. {answer_instruction} Explain the reasoning for selecting the answer.
             Finally, report whether you are confident in answering the question.
             Explain the reasoning behind the confidence level of your answer. Rate your level of confidence.
             Provide a value between 0 and 1; 0 for not confident at all and 1 for absolutely certain.
@@ -154,10 +187,10 @@ class VLMPlannerEQALlama4:
             '''
 
         prompt_no_image = f'''You are an excellent hierarchical graph planning agent.
-            Your goal is to navigate an unseen environment to confidently answer a multiple-choice question about the environment.
+            Your goal is to navigate an unseen environment to confidently answer {question_type} about the environment.
             As you explore the environment, your sensors are building a scene graph representation (in json format) and you have access to that scene graph.
             {scene_graph_desc}. {current_state_des}
-            Given the current state information, try to answer the question. Explain the reasoning for selecting the answer.
+            Given the current state information, try to answer the question. {answer_instruction} Explain the reasoning for selecting the answer.
             Finally, report whether you are confident in answering the question.
             Explain the reasoning behind the confidence level of your answer. Rate your level of confidence.
             Provide a value between 0 and 1; 0 for not confident at all and 1 for absolutely certain.
@@ -185,6 +218,32 @@ class VLMPlannerEQALlama4:
 
     def get_instruction_set(self, frontier_node_list, room_node_list, object_node_list, Answer_options):
 
+      if Answer_options is None:
+        answer_section = '''
+        {{
+        "answer": {{
+            {{"explanation_ans": "Provide a short free-form answer grounded in the environment."}},
+            {{"answer": "Provide the final short free-form answer as a string."}},
+            {{"explanation_conf": "Explain the reasoning behind the confidence level of your answer."}},
+            {{"confidence_level": "Choose a number ranging from '0.0' to '1.0'. You must return a number in this range."}},
+            {{"is_confident": "Select the string 'true' or 'false'."}}
+        }}
+        }},
+        '''
+      else:
+        answer_section = f'''
+        {{
+        "answer": {{
+            {{"explanation_ans": "Select the correct answer from the options."}},
+            {{"answer": "select one from: {', '.join(member.value for member in Answer_options)}"}},
+            {{"value": "select one from: {', '.join(member.name for member in Answer_options)}"}},
+            {{"explanation_conf": "Explain the reasoning behind the confidence level of your answer."}},
+            {{"confidence_level": "Choose a number ranging from '0.0' to '1.0'. You must return a number in this range."}},
+            {{"is_confident": "Select the string 'true' or 'false'."}}
+        }}
+        }},
+        '''
+
       instructions = f'''
         Your answer should strictly follow the below JSON format. Note that you should
         choose only one of the two types of available steps each query. The options are 
@@ -211,16 +270,7 @@ class VLMPlannerEQALlama4:
             }}
         ]
         }},
-        {{
-        "answer": {{
-            {{"explanation_ans": "Select the correct answer from the options."}},
-            {{"answer": "select one from: {', '.join(member.value for member in Answer_options)}"}},
-            {{"value": "select one from: {', '.join(member.name for member in Answer_options)}"}},
-            {{"explanation_conf": "Explain the reasoning behind the confidence level of your answer."}},
-            {{"confidence_level": "Choose a number ranging from '0.0' to '1.0'. You must return a number in this range."}},
-            {{"is_confident": "Select the string 'true' or 'false'."}}
-        }}
-        }},
+        {answer_section}
         {{"image_description": "Describe the CURRENT IMAGE. Pay special attention to features that can help answer the question or select future actions."}},
         {{"scene_graph_description": "Describe the SCENE GRAPH. Pay special attention to features that can help answer the question or select future actions."}},
         {{"question_type": "Use this to describe the type of question you are being asked. Can be one of 'Identification', 'Counting', 'Existence', 'State', 'Location'."}}
@@ -245,13 +295,13 @@ class VLMPlannerEQALlama4:
         elif step['type'] == 'Goto_frontier_node_step':
             action = f"Goto frontier_id: {step['frontier_id']}"
         else:
-            action = f"Answer: {answer['value']}: {answer['answer']}.  Confident: {answer['is_confident']}, Confidence level:{float(answer['confidence_level'])}"
+            action = f"Answer: {self._extract_answer_text(answer)}.  Confident: {answer['is_confident']}, Confidence level:{float(answer['confidence_level'])}"
         
         last_step = f'''
             The following information should serve only as HISTORY:
             Agent state(t={self.t}): {agent_state},
             Action(t={self.t}): {action},
-            Answer(t={self.t}): {answer['answer']} {answer['value']},
+            Answer(t={self.t}): {self._extract_answer_text(answer)},
             Question Type: {question_type}
         '''
         self._history += last_step
@@ -264,7 +314,7 @@ class VLMPlannerEQALlama4:
 
         messages=[
             {"role": "system", "content": f"AGENT ROLE: {self.agent_role_prompt}"},
-            {"role": "system", "content": f"QUESTION: {self._question}"},
+            {"role": "system", "content": f"QUESTION: {self.formatted_question}"},
             {"role": "user", "content": f"CURRENT STATE: {current_state_prompt}."},
             {"role": "user", "content": f"INSTRUCTIONS: {output_instructions}"}
         ]
@@ -357,7 +407,7 @@ class VLMPlannerEQALlama4:
         print(f'At t={self._t}: \n {step} \n {answer}')
 
         if step is None:
-            return None, None, is_confident, float(answer['confidence_level']), answer['value']
+            return None, None, is_confident, float(answer['confidence_level']), self._extract_answer_text(answer)
 
         if step['type']== 'Goto_object_node_step':
             target_pose = self.sg_sim.get_position_from_id(step['object_id'])
@@ -370,4 +420,4 @@ class VLMPlannerEQALlama4:
             self.update_history(agent_state, step, answer, target_pose, question_type)
 
         self._t += 1
-        return target_pose, target_id, is_confident, float(answer['confidence_level']), answer['value']
+        return target_pose, target_id, is_confident, float(answer['confidence_level']), self._extract_answer_text(answer)
