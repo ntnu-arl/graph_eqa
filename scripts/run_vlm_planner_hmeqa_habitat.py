@@ -150,28 +150,32 @@ def main(cfg):
                 cfg.vlm,
                 sg_sim,
                 vlm_question, vlm_pred_candidates, choices, answer, 
-                question_path)
+                question_path,
+                floorplan=question_data.get("floorplan"))
         elif 'gemini' in cfg.vlm.name.lower():
             from graph_eqa.planners.vlm_planner_gemini import VLMPlannerEQAGemini
             vlm_planner = VLMPlannerEQAGemini(
                 cfg.vlm,
                 sg_sim,
                 vlm_question, vlm_pred_candidates, choices, answer, 
-                question_path)
+                question_path,
+                floorplan=question_data.get("floorplan"))
         elif 'claude' in cfg.vlm.name.lower():
             from graph_eqa.planners.vlm_planner_claude import VLMPlannerEQAClaude
             vlm_planner = VLMPlannerEQAClaude(
                 cfg.vlm,
                 sg_sim,
                 vlm_question, vlm_pred_candidates, choices, answer, 
-                question_path)
+                question_path,
+                floorplan=question_data.get("floorplan"))
         elif 'llama' in cfg.vlm.name.lower():
             from graph_eqa.planners.vlm_planner_llama import VLMPlannerEQALlama4
             vlm_planner = VLMPlannerEQALlama4(
                 cfg.vlm,
                 sg_sim,
                 vlm_question, vlm_pred_candidates, choices, answer, 
-                question_path)
+                question_path,
+                floorplan=question_data.get("floorplan"))
         else:
             raise NotImplementedError('VLM planner not implemented.')
         
@@ -179,7 +183,7 @@ def main(cfg):
         click.secho(f"Question:\n{vlm_planner._question} \n Answer: {answer}",fg="green",)
 
         num_steps = 20
-        succ = False if not use_choices else None
+        succ = None if not use_choices else False
         planning_steps = 0
         traj_length = 0.
         for cnt_step in range(num_steps):

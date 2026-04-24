@@ -143,7 +143,8 @@ def main(cfg):
                 ["A", "B", "C", "D"],
                 choices,
                 answer, 
-                question_path)
+                question_path,
+                floorplan=question_data.get("floorplan"))
         elif 'gemini' in cfg.vlm.name.lower():
             from graph_eqa.planners.vlm_planner_gemini import VLMPlannerEQAGemini
             vlm_planner = VLMPlannerEQAGemini(
@@ -153,7 +154,8 @@ def main(cfg):
                 ["A", "B", "C", "D"],
                 choices,
                 answer, 
-                question_path)
+                question_path,
+                floorplan=question_data.get("floorplan"))
         elif 'claude' in cfg.vlm.name.lower():
             from graph_eqa.planners.vlm_planner_claude import VLMPlannerEQAClaude
             vlm_planner = VLMPlannerEQAClaude(
@@ -163,7 +165,8 @@ def main(cfg):
                 ["A", "B", "C", "D"],
                 choices,
                 answer, 
-                question_path)
+                question_path,
+                floorplan=question_data.get("floorplan"))
         elif 'llama' in cfg.vlm.name.lower():
             from graph_eqa.planners.vlm_planner_llama import VLMPlannerEQALlama4
             vlm_planner = VLMPlannerEQALlama4(
@@ -173,7 +176,8 @@ def main(cfg):
                 ["A", "B", "C", "D"],
                 choices,
                 answer, 
-                question_path)
+                question_path,
+                floorplan=question_data.get("floorplan"))
         else:
             raise NotImplementedError('VLM planner not implemented.')
         

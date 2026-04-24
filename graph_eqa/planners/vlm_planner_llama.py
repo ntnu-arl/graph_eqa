@@ -81,7 +81,7 @@ def create_planner_response(frontier_node_list, room_node_list, region_node_list
 
 
 class VLMPlannerEQALlama4:
-    def __init__(self, cfg, sg_sim, question, pred_candidates, choices, answer, output_path):
+    def __init__(self, cfg, sg_sim, question, pred_candidates, choices, answer, output_path, floorplan=None):
 
         self._question, self.choices, self.vlm_pred_candidates = question, choices, pred_candidates
         self._answer = answer
@@ -95,6 +95,7 @@ class VLMPlannerEQALlama4:
         self._t = 0
         self._add_history = cfg.add_history
         self._use_choices = getattr(cfg, "use_choices", True)
+        self._floorplan = floorplan
 
         self._outputs_to_save = [f'Question: {self._question}. \n Answer: {self._answer} \n']
         self.sg_sim = sg_sim
@@ -117,6 +118,22 @@ class VLMPlannerEQALlama4:
     @property
     def t(self):
         return self._t
+
+    @property
+    def has_floorplan(self):
+        return bool(self._floorplan)
+
+    @property
+    def floorplan_prompt(self):
+        if not self.has_floorplan:
+            return ""
+        return (
+            "You may also receive a floorplan topological graph as a structural prior over the full environment layout. "
+            "Treat it as imperfect prior information, not direct evidence. Use it to reason about likely missing rooms, "
+            "likely connectivity between observed and unobserved rooms, and which frontier or room-relevant object is most promising to inspect next. "
+            "Do not let the floorplan override direct image evidence or the current scene graph. "
+            "If the floorplan suggests a relevant room type may still be unexplored, be conservative about answering early."
+        )
 
     def get_actions(self):
         #object_node_list = Enum('object_node_list', {id: name for id, name in zip(self.sg_sim.object_node_ids, self.sg_sim.object_node_names)}, type=str)
@@ -156,11 +173,12 @@ class VLMPlannerEQALlama4:
             if self._use_choices and self.choices
             else "Answer the question directly using a short free-form answer grounded in the current environment."
         )
+        floorplan_instruction = self.floorplan_prompt
 
         prompt = f'''You are an excellent hierarchical graph planning agent.
             Your goal is to navigate an unseen environment to confidently answer {question_type} about the environment.
             As you explore the environment, your sensors are building a scene graph representation (in json format) and you have access to that scene graph.
-            {scene_graph_desc}. {current_state_des}
+            {scene_graph_desc}. {current_state_des} {floorplan_instruction}
             Given the current state information, try to answer the question. {answer_instruction} Explain the reasoning for selecting the answer.
             Finally, report whether you are confident in answering the question.
             Explain the reasoning behind the confidence level of your answer. Rate your level of confidence.
@@ -181,6 +199,7 @@ class VLMPlannerEQALlama4:
 
             While choosing either of the above actions, play close attention to 'HISTORY' especially the previous 'Action's to see if you have taken the same action at previous timesteps.
             Avoid taking the same actions you have taken before.
+            If a floorplan prior is available, briefly describe how it does or does not affect your choice of answer or next action.
             Describe the CURRENT IMAGE. Pay special attention to features that can help answer the question or select future actions.
             Describe the SCENE GRAPH. Pay special attention to features that can help answer the question or select future actions.
             For particularly obvious or challenging questions, consider finding a balance between answering too early and incorrectly, and taking more steps in the environment to verify your answer.
@@ -189,7 +208,7 @@ class VLMPlannerEQALlama4:
         prompt_no_image = f'''You are an excellent hierarchical graph planning agent.
             Your goal is to navigate an unseen environment to confidently answer {question_type} about the environment.
             As you explore the environment, your sensors are building a scene graph representation (in json format) and you have access to that scene graph.
-            {scene_graph_desc}. {current_state_des}
+            {scene_graph_desc}. {current_state_des} {floorplan_instruction}
             Given the current state information, try to answer the question. {answer_instruction} Explain the reasoning for selecting the answer.
             Finally, report whether you are confident in answering the question.
             Explain the reasoning behind the confidence level of your answer. Rate your level of confidence.
@@ -208,6 +227,7 @@ class VLMPlannerEQALlama4:
 
             While choosing either of the above actions, play close attention to 'HISTORY' especially the previous 'Action's to see if you have taken the same action at previous timesteps.
             Avoid taking the same actions you have taken before.
+            If a floorplan prior is available, briefly describe how it does or does not affect your choice of answer or next action.
             Describe the SCENE GRAPH. Pay special attention to features that can help answer the question or select future actions.
             '''
 
@@ -283,6 +303,8 @@ class VLMPlannerEQALlama4:
         prompt = f"At t = {self.t}: \n \
             CURRENT AGENT STATE: {agent_state}. \n \
             SCENE GRAPH: {scene_graph}. \n"
+        if self.has_floorplan:
+            prompt += f"FLOORPLAN PRIOR: {json.dumps(self._floorplan)}. \n"
 
         if self._add_history:
             prompt += f"HISTORY: {self._history}"

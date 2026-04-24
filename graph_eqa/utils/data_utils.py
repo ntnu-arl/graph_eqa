@@ -3,6 +3,21 @@ import numpy as np
 import json
 from pathlib import Path
 
+def load_prior_floorplan(floorplan_path: str
+    ) -> dict[str, list[str] | list[list[str]]]:
+        """Load a prior floorplan from the given path and return
+        its contents as a dictionary.
+        :param floorplan_path: The file path to the floorplan to load.
+        :return: The contents of the floorplan file as a dictionary.
+        """
+        if not os.path.exists(floorplan_path):
+            print(f"Floorplan file {floorplan_path} does not exist.")
+            return {}
+
+        with open(floorplan_path) as f:
+            floorplan_data = json.load(f)
+        return floorplan_data
+
 def load_eqa_data(cfg):
     # Load dataset
     with open(cfg.question_data_path) as f:
@@ -36,6 +51,7 @@ def load_eqa_data(cfg):
             if cfg.filter_floorplan and not floorplan_path.exists():
                 continue
             if data['scene'] in semantic_scenes:
+                data["floorplan"] = load_prior_floorplan(floorplan_path) if cfg.use_floorplan else None
                 filtered_question_data.append(data)
     else:
         for data in questions_data:
@@ -46,6 +62,7 @@ def load_eqa_data(cfg):
             if cfg.filter_floorplan and not floorplan_path.exists():
                 continue
             if data['scene'] in semantic_scenes:
+                data["floorplan"] = load_prior_floorplan(floorplan_path) if cfg.use_floorplan else None
                 filtered_question_data.append(data)
     print(f"Loaded {len(filtered_question_data)} questions.")
     return filtered_question_data, init_pose_data
@@ -77,6 +94,7 @@ def load_openeqa_data(cfg):
             floorplan_path = scene_dir.parent / "regions" / "topological_graph.json"
             if cfg.filter_floorplan and not floorplan_path.exists():
                 continue
+            data["floorplan"] = load_prior_floorplan(floorplan_path) if cfg.use_floorplan else None
             if cfg.use_semantic_data:
                 if scene_id in semantic_scenes:
                     if cfg.use_multifloor_questions:

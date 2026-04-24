@@ -1,7 +1,7 @@
 # General
 seed: 42
 exp_name: grapheqa_${vlm.name}_openeqa
-output_path: outputs/${exp_name}_detic_segm_no_choices
+output_path: outputs/${exp_name}_gt_no_choices
 results_filename: ${vlm.name}_images_${vlm.use_image}
 gpu: 0 
 sim_gpu: -1
@@ -13,9 +13,10 @@ data:
   openeqa_question_data_path: '/workspace/data/habitat-sim-data/versioned_data/hm3d-0.2/hm3d/open-eqa-v0.json'
   openeqa_init_pose_data_path: '/workspace/data/habitat-sim-data/versioned_data/hm3d-0.2/hm3d/openeqa_init_trajs.json'
   openeqa_choices_data_path: '/workspace/data/habitat-sim-data/versioned_data/hm3d-0.2/hm3d/open-eqa-choices.json'
-  use_semantic_data: False
+  use_semantic_data: True
   use_multifloor_questions: False
   filter_floorplan: True
+  use_floorplan: False
 
 detic:
   custom_vocabulary_path: /catkin_ws/src/hydra/config/label_spaces/hm3d_label_space.yaml

@@ -1,7 +1,7 @@
 # General
 seed: 42
 exp_name: grapheqa_${vlm.name}_hmeqa
-output_path: outputs/${exp_name}_detic_segm_no_choices
+output_path: outputs/${exp_name}_gt_no_choices
 results_filename: ${vlm.name}_images_${vlm.use_image}
 gpu: 0 
 sim_gpu: -1
@@ -13,8 +13,9 @@ data:
   semantic_annot_data_path: '/workspace/data/habitat-sim-data/versioned_data/hm3d-0.2/hm3d/train/'
   scene_data_path: '/workspace/data/habitat-sim-data/versioned_data/hm3d-0.2/hm3d/train/'
   explore_eqa_dataset_enrich_labels: 'cfg/explore_eqa_dataset_enrich_labels.yaml'
-  use_semantic_data: False
+  use_semantic_data: True
   filter_floorplan: True
+  use_floorplan: False
 
 detic:
   custom_vocabulary_path: /catkin_ws/src/hydra/config/label_spaces/hm3d_label_space.yaml
